@@ -203,10 +203,11 @@ class Student(Person):
                 }
                 Student.save_student_data(students)
 
-                print("Registration successful!")
+                self.login_time = datetime.datetime.now()
+                login_time_formatted = self.login_time.strftime("%H:%M")
+                print("Registration successful!", login_time_formatted)
                 self.load_student(students, student_number)
                 self.display_menu()
-
 
     def display_menu(self):
         print("\nWelcome, {} {}!".format(self.first_name, self.last_name))
