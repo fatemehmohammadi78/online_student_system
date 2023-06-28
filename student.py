@@ -1,7 +1,36 @@
 import pickle
-import courses
 import datetime
 import random
+from abc import ABC, abstractmethod
+
+from courses import Course
+
+
+class User(ABC):
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+
+    @staticmethod
+    @abstractmethod
+    def check_password(p1: str, p2: str) -> bool:
+        pass
+
+    @abstractmethod
+    def login(self):
+        pass
+
+    @abstractmethod
+    def logout(self):
+        pass
+
+    @abstractmethod
+    def save(self, data):
+        pass
+
+    @abstractmethod
+    def load(self):
+        pass
 
 
 class Person:
@@ -11,12 +40,16 @@ class Person:
         self.last_name = last_name
 
 
-class Student(Person):
-    def __init__(self, student_number, national_code, first_name, last_name, gender, marital_status,
-                 phone_number, mothers_name, fathers_name, address, tuition_based_or_free, faculty_name,
-                 field_of_study):
+class Student(Person, User):
+
+    def __init__(self, student_number=None, national_code=None, first_name=None, last_name=None,
+                 gender=None, marital_status=None, phone_number=None, mothers_name=None,
+                 fathers_name=None, address=None, tuition_based_or_free=None,
+                 faculty_name=None, field_of_study=None):
         super().__init__(national_code, first_name, last_name)
         self.student_number = student_number
+        self.username = self.student_number
+        self.password = self.national_code
         self.gender = gender
         self.marital_status = marital_status
         self.phone_number = phone_number
@@ -28,9 +61,23 @@ class Student(Person):
         self.field_of_study = field_of_study
         self.login_time = None
         self.logout_time = None
+        self.courses = Course()
+
+    @staticmethod
+    def check_password(p1, p2):
+        return p1 == p2
+
+    def logout(self):
+        self.logout_time = datetime.datetime.now()
+
+    def save(self, data):
+        self.save_student_data(data)
+
+    def load(self):
+        return self.load_student_data()
 
     def display_course_data(self):
-        students = Student.load_student_data()
+        students = self.load_student_data()
 
         if self.student_number in students:
             student_data = students[self.student_number]
@@ -62,13 +109,9 @@ class Student(Person):
         with open("student_data.pickle", "wb") as file:
             pickle.dump(data, file)
 
-    @staticmethod
-    def load_course_data():
-        try:
-            with open("courses.pickle", "rb") as file:
-                return pickle.load(file)
-        except FileNotFoundError:
-            return {}
+    def load_course_data(self):
+        course_data = self.courses.load_data()
+        return course_data
 
     def assign_money(self):
         student_data = Student.load_student_data()
@@ -138,7 +181,8 @@ class Student(Person):
         national_code = input("Enter your national code: ")
         students = Student.load_student_data()
 
-        if student_number in students and students[student_number]["national_code"] == national_code:
+        if student_number in students \
+                and students[student_number]["national_code"] == national_code:
             # print("You have successfully logged in!")
             self.load_student(students, student_number)
             self.login_time = datetime.datetime.now()
@@ -147,6 +191,7 @@ class Student(Person):
             self.display_menu()
         else:
             print("You have not registered yet.")
+            print("Registering now...")
             self.register()
 
     def register(self):
@@ -174,7 +219,7 @@ class Student(Person):
 
             user_input = input()
             if user_input.lower() == 'b':
-                print('Sign up: Please select the option and enter the required information!')
+                print('Sign up: Please enter the required information')
                 national_code = input("Enter your national code: ")
                 gender = input("Enter your gender: ")
                 marital_status = input("Enter your marital status: ")
@@ -212,12 +257,12 @@ class Student(Person):
     def display_menu(self):
         print("\nWelcome, {} {}!".format(self.first_name, self.last_name))
         while True:
-            print("1. selection")
-            print("2. add remove")
+            print("1. Selection")
+            print("2. Add and Remove")
             print("3. Confirmation")
             print("4. Financial")
-            print("5. Quit request")
-            print("6. About us")
+            print("5. Quit Request")
+            print("6. About Us")
             print("7. Exit")
 
             choice = int(input("Enter your choice: "))
@@ -241,7 +286,15 @@ class Student(Person):
                 print("Invalid choice. Please try again.")
 
     def selection(self):
-        course_data = Student.load_course_data()
+        students = Student.load_student_data()
+
+        # student_data = students[self.student_number]
+        # if 'courses' not in student_data:
+        #     taken_student_courses = []
+        # else:
+        #     taken_student_courses = student_data['courses']
+        # print('Student courses:', taken_student_courses)
+
         print("1. View available courses")
         print("2. Select courses")
         print("3. Go back")
@@ -250,15 +303,15 @@ class Student(Person):
 
         if choice == "1":
             print("Available Courses:")
-            for course_id, course_name in course_data.items():
+            for course_id, course_name in self.courses.available_courses.items():
                 print(f"{course_id}: {course_name}")
             print()
 
         elif choice == "2":
             course_id = input("Enter the course code to add: ")
-            if course_id in course_data:
-                course_name = course_data[course_id]["course_name"]
-                prof_name = course_data[course_id]["professor_name"]
+            if course_id in self.courses.available_courses:
+                course_name = self.courses.available_courses[course_id]["course_name"]
+                prof_name = self.courses.available_courses[course_id]["professor_name"]
                 students = Student.load_student_data()
                 if self.student_number in students:
                     student_data = students[self.student_number]
@@ -267,7 +320,6 @@ class Student(Person):
                     )
                     Student.save_student_data(students)
                     print(f"{course_name} has been added to your course list.")
-                    # self.display_course_data()
                     print()
                 else:
                     print("Invalid student number.")
@@ -281,6 +333,12 @@ class Student(Person):
 
     def add_remove(self):
         students = Student.load_student_data()
+        # student_data = students[self.student_number]
+        # if 'courses' not in student_data:
+        #     taken_student_courses = []
+        # else:
+        #     taken_student_courses = student_data['courses']
+        # print('Student courses:', taken_student_courses)
 
         print("1. Add a course")
         print("2. Remove a course")
@@ -290,7 +348,7 @@ class Student(Person):
 
         if choice == "1":
             course_id = input("Enter the course code to add: ")
-            course_data = Student.load_course_data()
+            course_data = self.load_course_data()
 
             if course_id in course_data:
                 course_name = course_data[course_id]["course_name"]
@@ -363,8 +421,8 @@ class Student(Person):
 
             while True:
                 print("1. View budget")
-                print("2. Pay")
-                print("3. Withdraw")
+                print("2. Withdraw")
+                print("3. Deposit")
                 print("4. Go back")
 
                 choice = input("Enter your choice: ")
@@ -374,27 +432,27 @@ class Student(Person):
                     print("Your current budget is:", "$", budget)
 
                 elif choice == "2":
-                    amount = float(input("Enter the amount to pay: $"))
+                    amount = float(input("Enter the amount to withdraw: $"))
                     budget = student_data.get("financial_id", {}).get("budget", 0)
 
                     if amount <= budget:
                         budget -= amount
                         student_data.setdefault("financial_id", {})["budget"] = budget
                         Student.save_student_data(students)
-                        print("Payment of ${} has been successfully made.".format(amount))
+                        print("Withdrawal of ${} has been successfully made.".format(amount))
                         print("Your current budget is: ${}".format(budget))
                     else:
-                        print("Insufficient budget to make the payment.")
+                        print("Insufficient budget to make the withdrawal.")
 
                 elif choice == "3":
 
-                    amount = float(input("Enter the amount to withdraw: $"))
+                    amount = float(input("Enter the amount to deposit: $"))
                     budget = student_data.get("financial_id", {}).get("budget", 0)
 
                     budget += amount
                     student_data.setdefault("financial_id", {})["budget"] = budget
                     Student.save_student_data(students)
-                    print("Withdrawal of ${} has been successful.".format(amount))
+                    print("Deposit of ${} has been successful.".format(amount))
                     print("Your current budget is: ${}".format(budget))
 
                 elif choice == "4":
@@ -432,7 +490,7 @@ class Student(Person):
         if "status" in student_data and student_data["status"] == "Dropped Out":
             print("Status: Dropped Out")
             print("Reason: {}".format(student_data["reason"]))
-            print("Base dige khaste shodm!")
+            print("Base dige khaste shodam!")
         else:
             self.display_student_info()
             self.display_course_data()

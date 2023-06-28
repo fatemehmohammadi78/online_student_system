@@ -1,23 +1,17 @@
+from courses import Course
 from student import Student
 
 
 def main():
-    student = Student(
-        student_number='',
-        national_code='',
-        first_name='',
-        last_name='',
-        gender='',
-        marital_status='',
-        phone_number='',
-        mothers_name='',
-        fathers_name='',
-        address='',
-        tuition_based_or_free='',
-        faculty_name='',
-        field_of_study=''
-    )
 
+    #
+    courses = Course()
+    if courses.course_file_exists():
+        pass
+    else:
+        courses.save_data()
+
+    student = Student()
     student.display_home_page()
 
     while True:
